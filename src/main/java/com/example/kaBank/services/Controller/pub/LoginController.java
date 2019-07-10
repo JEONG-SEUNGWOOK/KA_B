@@ -8,7 +8,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.support.SessionStatus;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.RedirectView;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -21,12 +23,12 @@ import java.util.Map;
 public class LoginController {
     private AccountRepository accountRepository;
 
-    @GetMapping("/login")
+    @GetMapping("login")
     public String login(){
         return "pub/login";
     }
 
-    @PostMapping("/loginProcess")
+    @PostMapping("loginProcess")
     public ModelAndView loginProcess(HttpServletRequest request, HttpSession session){
 
 
@@ -63,7 +65,6 @@ public class LoginController {
             return mav.addObject("msg", "failure");
         }
 
-        System.out.println("check "+loginPwd);
         // id와 password 비교
         if(loginId.equals(userId) && BCrypt.checkpw(loginPwd,userPwd)){
 
@@ -82,6 +83,18 @@ public class LoginController {
         }
 
         mav.setViewName(returnUrl);
+        return mav;
+    }
+
+    @PostMapping("logoutProcess")
+    public RedirectView logoutProcess(SessionStatus status, HttpSession session){
+        RedirectView mav = new RedirectView("/pub/login");
+
+        if(status.isComplete() == true){
+            System.out.println("Success remove session, Logout..");
+        }
+        status.setComplete();
+        session.invalidate();
         return mav;
     }
 }

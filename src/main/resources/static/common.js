@@ -1,3 +1,3 @@
 var MAIN_URL = "/admin/main";
 
-var PAGE_SIZE = 5;
+var PAGE_SIZE = 3;

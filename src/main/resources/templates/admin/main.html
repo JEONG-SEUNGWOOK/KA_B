@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>메인</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/semantic/semantic.min.css">
+    <link href="/kendoui/styles/kendo.common.min.css" rel="stylesheet" />
+    <link href="/kendoui/styles/kendo.bootstrap-v4.min.css" rel="stylesheet" />
+
+    <style>
+        .wrap {position: absolute;left: 0;bottom: 40px;width: 288px;height: 132px;margin-left: -144px;text-align: left;overflow: hidden;font-size: 12px;font-family: 'Malgun Gothic', dotum, '돋움', sans-serif;line-height: 1.5;}
+        .wrap * {padding: 0;margin: 0;}
+        .wrap .info {width: 286px;height: 120px;border-radius: 5px;border-bottom: 2px solid #ccc;border-right: 1px solid #ccc;overflow: hidden;background: #fff;}
+        .wrap .info:nth-child(1) {border: 0;box-shadow: 0px 1px 2px #888;}
+        .info .title {padding: 5px 0 0 10px;height: 30px;background: #eee;border-bottom: 1px solid #ddd;font-size: 18px;font-weight: bold;}
+        .info .close {position: absolute;top: 10px;right: 10px;color: #888;width: 17px;height: 17px;background: url('http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/overlay_close.png');}
+        .info .close:hover {cursor: pointer;}
+        .info .body {position: relative;overflow: hidden;}
+        .info .desc {position: relative;margin: 13px 0 0 10px;height: 75px;}
+        .desc .ellipsis {overflow: hidden;text-overflow: ellipsis;white-space: nowrap;}
+        .desc .jibun {font-size: 11px;color: #888;margin-top: -2px;}
+        .info:after {content: '';position: absolute;margin-left: -12px;left: 50%;bottom: 0;width: 22px;height: 12px;background: url('http://t1.daumcdn.net/localimg/localimages/07/mapapidoc/vertex_white.png')}
+        .info .link {color: #5085BB;}
+
+    </style>
+</head>
+
+<body>
+<script
+        src="https://code.jquery.com/jquery-3.1.1.min.js"
+        integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script src="/semantic/semantic.min.js"></script>
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=42ee9fcf1d2bd0c1eda803ea489c8313"></script>
+
+<script src="/kendoui/js/kendo.all.min.js"></script>
+<script src="https://kit.fontawesome.com/58f97e3c03.js"></script>
+<script src="/common.js" type="text/javascript"></script>
+
+<div class="container">
+
+    <div class="ui segment col-md-4">
+        <h1>장소 검색 서비스 <span id="logoutBtn" style="float:right; cursor: pointer;"><i class="fas fa-sign-out-alt"></i></span></h1>
+
+        <input id="search_bar" />
+        <button id="search_btn"></button>
+
+
+        <h3>인기검색어</h3>
+        <div class="ui compact menu fluid">
+            <div class="ui simple dropdown item">
+                <span id="searchText">인기검색어</span>
+                <div class="menu"></div>
+            </div>
+        </div>
+
+
+        <div id="listView"></div>
+        <div id="pager" class="k-pager-wrap"></div>
+
+        <div class="ui items"></div>
+
+        <ul id="pagination" class="pagination-sm"></ul>
+    </div>
+    <div class="col-md-8">
+        <div id="map" style="width:1000px;height:600px;"></div>
+    </div>
+</div>
+
+<script type="text/x-kendo-template" id="template">
+    <div sytle="margin : 0 10em 0 10ex">
+        <h2>#:place_name #</h2>
+
+        <span class="k-icon k-i-marker-pin"></span>#:road_address_name#
+        <div>&emsp; (지번 : #:address_name#)</div>
+
+        <div><i class="fas fa-phone"></i>#:(phone ? phone : '정보없음')#</div>
+        <div><span class="k-icon k-i-link-horizontal"></span>
+            <a href="#:place_url#" target="_blank">상세정보</a>
+        </div>
+        <div><i class="far fa-map"></i>
+            <a href="https://map.kakao.com/link/map/#:id#" target="_blank">Kakao Map 바로가기</a>
+        </div>
+        <div><span class="k-icon k-i-pin"></span>
+            <a style="cursor: pointer;" onclick="setMarkToMap('#=id#','#:place_name#','#:road_address_name#','#:address_name#','#:phone#','#:y#','#:x#')">
+                현재 Map에서 이동하기
+            </a>
+        </div>
+        <hr>
+    </div>
+</script>
+<script>
+
+    var interval = null;
+    var keywordOrder = 0;
+    var keywordList = [];
+    var map = null;
+    var query = '';
+    var overlay = null;
+    var marker = null;
+
+    //history 로드
+    initTopKeyword();
+    initMap();
+
+    var search_bar = $("#search_bar").kendoAutoComplete({
+        dataSource: {
+            transport: {
+                read : {
+                    url : '/admin/history',
+                    dataType: 'json'
+                }
+            }
+        },
+        dataTextField: 'keyword',
+        template: '<span style="width: 49%;"> #: data.keyword# </span><span style="width: 49%; text-align: right;">#: kendo.toString(new Date(data.searchTime), "MM.dd")# </span>',
+        filter: "startswith",
+        clearButton: false,
+        placeholder: "장소검색"
+    }).data('kendoAutoComplete');
+
+    $("#search_bar").on("click", function(){
+        search_bar.search();
+    });
+
+
+    $('#search_btn').kendoButton({
+        icon: 'search',
+        click: function(){
+            search();
+        }
+    });
+
+    $("#search_bar").bind("enterKey", function(e){
+        search();
+    });
+    $("#search_bar").keyup(function(e){
+        if(e.keyCode == 13){
+            $(this).trigger("enterKey");
+        }
+    });
+    //키워드로 장소검색
+    function search() {
+        query = $('#search_bar').val();
+        if(query == '' || query == null) {
+            alert('검색어를 입력해주세요!');
+            return;
+        }
+        $("#listView").data("kendoListView").dataSource.read();
+        var pager = $("#pager").data("kendoPager");
+        if (pager.dataSource.page() != 1) {
+            pager.dataSource.page(1);
+        }
+
+        //최초 검색시부터 인기검색어에 키워드가 추가되면서 인기검색어 갱신 및 화면출력이 시작
+        if(keywordList.length==0) initTopKeyword();
+    }
+    //로그아웃 버튼
+    $("#logoutBtn").on("click", function(){
+        if(confirm('로그아웃 하시겠습니까?')==true){
+            $.ajax({
+                type:'POST',
+                url :'/pub/logoutProcess',
+                success: function(){
+                    var url = "/pub/login";
+                    $(location).attr("href", url);
+                }
+            });
+        }
+        else {
+            return;
+        }
+    });
+
+    var dataSource = new kendo.data.DataSource({
+        pageSize: PAGE_SIZE,
+        serverPaging: true,
+        schema: {
+            total: "total",
+            data : "results"
+        },
+        transport: {
+            read: function(options){
+                $.ajax({
+                    type: 'GET',
+                    data : 'query='+query+"&page=" + options.data.page + "&size=" + options.data.pageSize,
+                    url: "/admin/search",
+                    dataType: "json",
+                    success: function(result){
+                        options.success(result);
+                    }
+                })
+            }
+        }
+    });
+    var pager = $("#pager").kendoPager({
+        autoBind: false,
+        dataSource: dataSource
+    }).data("kendoPager");
+
+    var listView = $("#listView").kendoListView({
+        autoBind: false,
+        dataSource: dataSource,
+        template: kendo.template($("#template").html())
+    }).data("kendoListView");
+
+    //지도초기화
+    function initMap(){
+
+        var container = document.getElementById('map'); //지도를 담을 영역의 DOM 레퍼런스
+        var options = { //지도를 생성할 때 필요한 기본 옵션
+            center: new kakao.maps.LatLng(37.4012318, 127.108642), //지도의 중심좌표.
+            level: 3 //지도의 레벨(확대, 축소 정도)
+        };
+
+        map = new kakao.maps.Map(container, options); //지도 생성 및 객체 리턴
+    }
+
+
+    function setKeyword() {
+        if(keywordList.length > 0) $('#searchText').text(keywordList[keywordOrder++].value);
+
+        // 1위부터 마지막 순위까지 출력이 완료되면 히스토리를 다시 로딩하여 순위 데이터 갱신
+        if (keywordOrder == keywordList.length) {
+            keywordOrder = 0;
+            stopInterval();
+            initTopKeyword();
+        }
+    }
+    //인기검색어 타이머 시작(해당시간마다 최상단에 인기검색어 변경)
+    function startInterval() {
+        interval = setInterval(setKeyword, 5000);
+    }
+    //인기검색어 타이머 종료
+    function stopInterval() {
+        if (interval != null) {
+            clearInterval(interval);
+        }
+    }
+
+    //인기검색어 추가
+    function initTopKeyword() {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === xhr.DONE) {
+                if (xhr.status === 200 || xhr.status === 201) {
+                    keywordList = JSON.parse(xhr.responseText);
+                    $('.ui.dropdown').dropdown('change values', keywordList);
+                    startInterval(); //검색순위 변경하여 최상단에 보여줌
+
+                } else {
+                    console.error(xhr.responseText);
+                }
+            }
+        };
+        xhr.open('GET', '/admin/topKeyword');
+        xhr.send();
+    }
+
+
+    //지도에 마커 추가
+    function setMarkToMap(id, place_name, road_address, address, phone, lat, lng){
+        var detail = 'https://map.kakao.com/link/map/'+id;
+
+        panTo(lat, lng);
+        drawMarker(lat, lng);
+        initOverlay(place_name, road_address, address, phone, detail);
+    }
+    //해당위치로 이동
+    function panTo(lat, lng) {
+        // 이동할 위도 경도 위치를 생성합니다
+        var moveLatLon = new kakao.maps.LatLng(lat, lng);
+
+        // 지도 중심을 부드럽게 이동시킵니다
+        // 만약 이동할 거리가 지도 화면보다 크면 부드러운 효과 없이 이동합니다
+        map.panTo(moveLatLon);
+    }
+
+
+    // 지도에 마커를 표시합니다
+    function drawMarker(lan, lng){
+        marker = new kakao.maps.Marker({
+            map: map,
+            position: new kakao.maps.LatLng(lan, lng)
+        });
+    }
+
+    // 마커 위에 커스텀오버레이를 표시합니다
+    // 마커를 중심으로 커스텀 오버레이를 표시하기위해 CSS를 이용해 위치를 설정했습니다
+    function initOverlay(place_name, road_address, address, phone, detail){
+        var content = '<div class="wrap">' +
+            '    <div class="info">' +
+            '        <div class="title">' +
+            place_name +
+            '            <div class="close" onclick="closeOverlay()" title="닫기"></div>' +
+            '        </div>' +
+            '        <div class="body">' +
+            '            <div class="desc">' +
+            '                <div class="ellipsis">'+road_address+'</div>' +
+            '                <div class="jibun ellipsis">(지번) '+address+'</div>' +
+            '                <div class="ellipsis">'+phone+'</div>' +
+            '                <div><a href='+detail+' target="_blank" class="link">상세정보</a></div>' +
+            '            </div>' +
+            '        </div>' +
+            '    </div>' +
+            '</div>';
+
+        overlay = new kakao.maps.CustomOverlay({
+            content: content,
+            map: map,
+            position: marker.getPosition()
+        });
+
+        // 마커를 클릭했을 때 커스텀 오버레이를 표시합니다
+        kakao.maps.event.addListener(marker, 'click', function() {
+            overlay.setMap(map);
+        });
+    }
+
+    // 커스텀 오버레이를 닫기 위해 호출되는 함수입니다
+    function closeOverlay() {
+        overlay.setMap(null);
+    }
+
+</script>
+</body>
+</html>

@@ -19,7 +19,6 @@ public class KaBankApplication {
 
 		ConfigurableApplicationContext context = SpringApplication.run(KaBankApplication.class, args);
 		AccountRepository accountRepository = context.getBean(AccountRepository.class);
-		HistoryRepository historyRepository = context.getBean(HistoryRepository.class);
 
 		AccountDTO accountDTO = new AccountDTO();
 		accountDTO.setId("admin");
@@ -27,14 +26,6 @@ public class KaBankApplication {
 		accountDTO.setUserName("관리자");
 
 		accountRepository.save(accountDTO);
-
-
-		HistoryDTO historyDTO = new HistoryDTO();
-		historyDTO.setKeyword("카카오");
-
-		historyRepository.save(historyDTO);historyDTO.setKeyword("카카");
-
-		historyRepository.save(historyDTO);
 	}
 
 }

@@ -2,10 +2,13 @@ package com.example.kaBank.services.Controller.admin;
 
 import com.example.kaBank.services.DTO.HistoryDTO;
 import com.example.kaBank.services.Repository.HistoryRepository;
+import com.example.kaBank.util.ServerPaging;
+
 import lombok.AllArgsConstructor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.json.JSONObject;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
+
 
 @Controller
 @RequestMapping("/admin")
@@ -30,10 +34,11 @@ public class WebController {
 
     @ResponseBody
     @GetMapping("search")
-    public String search(@RequestParam(value="query") String query,
-                         @RequestParam(value="page", defaultValue = "1") int page,
-                         @RequestParam(value="size", defaultValue = "10") int size){
+    public ServerPaging<Object> search(@RequestParam(value="query") String query,
+                                          @RequestParam(value="page", defaultValue = "1") int page,
+                                          @RequestParam(value="size", defaultValue = "10") int size){
         String result = "";
+        Map<String, Object> datas = new HashMap<>();
         String queryString = "query="+query+"&page="+page+"&size="+size;
         OkHttpClient client = new OkHttpClient();
 
@@ -63,7 +68,16 @@ public class WebController {
             e.printStackTrace();
         }
 
-        return result;
+        JSONObject obj = new JSONObject(result);
+        Integer totalPage = Integer.parseInt(String.valueOf(obj.getJSONObject("meta").get("pageable_count")));
+
+        List<Object> arr = obj.getJSONArray("documents").toList();
+        System.out.println(arr);
+
+        ServerPaging<Object> serverPaging = new ServerPaging();
+        serverPaging.setTotal(totalPage);
+        serverPaging.setResults(arr);
+        return serverPaging;
     }
 
     @ResponseBody
@@ -90,19 +104,18 @@ public class WebController {
 
         for (int i = 0; i < list.size(); i++) {
 
-            HashMap<String, Integer> tm = new HashMap<String, Integer>(list.get(i));
+            HashMap<String, String> tm = new HashMap<String, String>(list.get(i));
 
             Iterator<String> iteratorKey = tm.keySet().iterator(); // 키값 오름차순
 
-            Map  newMap = new HashMap();
+            Map newMap = new HashMap();
 
-            // //키값 내림차순 정렬
-
+            // 키값 내림차순 정렬
             while (iteratorKey.hasNext()) {
 
                 String key = iteratorKey.next();
-
-                newMap .put(key.toLowerCase(), tm.get(key));
+                String value = String.format("%d. %s", i + 1, tm.get(key));
+                newMap .put(key.toLowerCase(), value);
 
             }
 

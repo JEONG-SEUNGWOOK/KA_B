@@ -12,6 +12,9 @@ public interface HistoryRepository extends JpaRepository<HistoryDTO, String> {
     public List<HistoryDTO> findAllByOrderBySearchTimeDesc();
 
     //최근 인기검색어 top 10
-    @Query(nativeQuery = true, value = "SELECT CONCAT(s.keyword, '(', s.count, ' 회)') as name, s.keyword AS value, s.keyword AS text FROM History s ORDER BY s.count DESC LIMIT 10")
+    @Query(nativeQuery = true,
+            value =
+                    "SELECT CONCAT(s.keyword, '(', s.count, ' 회)') as name, s.keyword AS value, s.keyword AS text " +
+                            "FROM History s ORDER BY s.count DESC LIMIT 10")
     public List<Map> findTop10ByOrderByCountDesc();
 }
